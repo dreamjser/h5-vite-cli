@@ -1,14 +1,7 @@
-import { fileURLToPath } from 'url'
 import path from 'path'
-import { dirname, join } from 'path'
+import { join } from 'path'
 import fs from 'fs'
-import postcssImport from 'postcss-import'
-import postcssUrl from 'postcss-url'
-import autoprefixer from 'autoprefixer'
-import postcssPxToViewport from 'postcss-px-to-viewport'
 import fileModule from '@dreamjser/file'
-
-const __filename = fileURLToPath(import.meta.url)
 
 export const getCurrentPath = (path) => {
   return join(process.cwd(), path)
@@ -33,17 +26,6 @@ export const getAppConfig = async () => {
     const config = await import(configPath)
     return config.default
   }
-  return {
-    modulePrefix: 'react_',
-    devPort: '3003',
-    outputPath: 'dist',
-    proxyTable: {
-      '/api': {
-        target: 'http://localhost:4002',
-        changeOrigin: true
-      }
-    }
-  }
 }
 
 export const getEnvConfig = async (env) => {
@@ -51,83 +33,6 @@ export const getEnvConfig = async (env) => {
   if (fs.existsSync(configPath)) {
     const config = await import(configPath)
     return config.default
-  }
-  return {
-    NODE_ENV: '"development"',
-    BASE_URL: '"http://localhost:4002/api/"',
-    PUBLIC_PATH: '/'
-  }
-}
-
-export const getViteConfig = async () => {
-  const configPath = join(process.cwd(), 'vite.config.js')
-  const envConfig = await getEnvConfig(process.env.currentEnv)
-  if (fs.existsSync(configPath)) {
-    const config = await import(configPath)
-    return config.default
-  }
-  return {
-    plugins: [],
-    resolve: {
-      alias: {
-        '@': join(process.cwd(), 'src'),
-        '@tmp': join(process.cwd(), '.tmp')
-      }
-    },
-    define: {
-      'GLOBAL_CONFIG': JSON.stringify(envConfig)
-    },
-    css: {
-      preprocessorOptions: {
-        less: {
-          javascriptEnabled: true
-        }
-      },
-      postcss: {
-        plugins: [
-          postcssImport(),
-          postcssUrl(),
-          autoprefixer(),
-          postcssPxToViewport({
-            viewportWidth: 375,
-            unitPrecision: 5,
-            viewportUnit: 'vw',
-            selectorBlackList: [],
-            minPixelValue: 1,
-            mediaQuery: false
-          })
-        ]
-      }
-    },
-    server: {
-      port: 3003,
-      open: true,
-      proxy: {
-        '/api': {
-          target: 'http://localhost:4002',
-          changeOrigin: true
-        }
-      }
-    },
-    build: {
-      outDir: 'dist',
-      assetsDir: 'assets',
-      minify: 'terser',
-      terserOptions: {
-        compress: {
-          drop_console: true,
-          drop_debugger: true
-        }
-      },
-      rollupOptions: {
-        output: {
-          manualChunks: undefined
-        }
-      }
-    },
-    optimizeDeps: {
-      exclude: ['crypto']
-    }
   }
 }
 

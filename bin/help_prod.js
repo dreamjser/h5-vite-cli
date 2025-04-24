@@ -1,24 +1,19 @@
 #!/usr/bin/env node
 
-import { createServer } from 'vite';
+import { build } from 'vite';
 
-export const createDevFunc = (createFunc) => {
+export const createProdFunc = (createFunc) => {
   createFunc(async () => {
     try {
       // 获取 Vite 配置
       const viteConfig = await import('../build/vite.config.js')
 
-      // 创建开发服务器
-      const server = await createServer({
+      await build({
         ...viteConfig.default,
         configFile: false
       });
 
-      // 启动服务器
-      await server.listen();
-
-      // 打印服务器信息
-      server.printUrls();
+      console.log('构建完成！');
     } catch (error) {
       console.error('启动开发服务器失败:', error);
       process.exit(1);
