@@ -24,6 +24,7 @@ export default defineConfig({
   ],
   resolve: {
     alias,
+    extensions: ['.js', '.jsx', '.ts', '.tsx', '.vue'],
   },
   define: {
     'GLOBAL_CONFIG': JSON.stringify(envConfig)
