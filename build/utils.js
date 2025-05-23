@@ -36,6 +36,123 @@ export const getEnvConfig = async (env) => {
   }
 }
 
+export const createMultiPage = async (cb) => {
+  let params = process.env.currentModules
+  let framework = process.env.currentFramework
+  let allModules = fs.readdirSync(getCurrentPath('src/modules'))
+  let envConfg = await getGlobalConfig()
+  let appConfig = await getAppConfig()
+  let isProd = envConfg.NODE_ENV.indexOf('production') >= 0? true: false
+
+  if(params.toLocaleLowerCase() === 'all' || isProd) {
+    params = allModules
+  }
+
+  params.forEach((module) => {
+    const confPath = path.join(process.cwd(), `src/modules/${module}/conf.json`);
+    try {
+      const jsonData = fs.readFileSync(confPath, 'utf-8');
+      const conf = JSON.parse(jsonData);
+      let htmlData = fs.readFileSync(getCurrentPath('template/index.html'), 'utf-8')
+
+
+      Object.keys(conf).forEach(sencondKey => {
+        const secondConf = conf[sencondKey]
+
+        Object.keys(secondConf).forEach(thirdKey => {
+          const thirdPath = path.join(process.cwd(), `.tmp/multiple/${module}/${sencondKey}/${thirdKey}`)
+          const content = framework === 'vue'?
+          (
+            `import '@/common/styles/app.less'\n`+
+            `import '@/common/app'\n`+
+            `import { createApp } from 'vue'\n`+
+            `import { createPinia } from 'pinia'\n`+
+            `import Render from '@/modules/${module}/views/${sencondKey}/${thirdKey}.vue'\n`+
+            `const pinia = createPinia()\n`+
+            `const vm = createApp(Render)\n`+
+            `vm.use(pinia)\n`+
+            `vm.mount('#${appConfig.containerId}')\n`+
+            `App.vm = vm`
+          )
+          :
+          (
+            `import '@/common/styles/app.less'\n`+
+            `import React from 'react'\n`+
+            `import { createRoot } from 'react-dom/client'\n`+
+            `import Entry from '@/modules/${module}/views/${sencondKey}/${thirdKey}'\n`+
+            `import '@/common/app'\n`+
+            `const root = createRoot(document.getElementById('${appConfig.containerId}') as HTMLElement)\n`+
+            `root.render(<Entry />)`
+          )
+          fileModule.mkdir(thirdPath, () => {
+            htmlData = htmlData.replace(/src="\/src\/portal\/index.tsx?"/, `src="./main.${framework === 'vue'? 'js': 'tsx'}"`)
+
+            fs.writeFile(
+              thirdPath + `/index.html`,
+              htmlData,
+              () => {}
+            )
+
+            fs.writeFile(
+              thirdPath + `/main.${framework === 'vue'? 'js': 'tsx'}`,
+              content,
+              () => {}
+            )
+          })
+        })
+      })
+    } catch (error) {
+
+    }
+
+  })
+
+  setTimeout(cb, 1000)
+}
+
+export const getMulitEntry = async () => {
+  let params = process.env.currentModules
+  let framework = process.env.currentFramework
+  let allModules = fs.readdirSync(getCurrentPath('src/modules'))
+  let envConfg = await getGlobalConfig()
+  let isProd = envConfg.NODE_ENV.indexOf('production') >= 0? true: false
+
+  if(params.toLocaleLowerCase() === 'all' || isProd) {
+    params = allModules
+  }
+
+  const pagesConfig = []
+
+  params.forEach((module) => {
+    const confPath = path.join(process.cwd(), `src/modules/${module}/conf.json`);
+
+    try {
+      const jsonData = fs.readFileSync(confPath, 'utf-8');
+      const conf = JSON.parse(jsonData);
+
+      Object.keys(conf).forEach(sencondKey => {
+        const secondConf = conf[sencondKey]
+
+        Object.keys(secondConf).forEach(thirdKey => {
+          const thirdConf = secondConf[thirdKey]
+          pagesConfig.push({
+            // entry: getCurrentPath(`.tmp/multiple/${module}/${sencondKey}/${thirdKey}/main.${framework === 'vue'? 'js': 'tsx'}`),
+            filename: getCurrentPath(`dist/${module}/${sencondKey}/${thirdKey}.html`),
+            template: getCurrentPath(`.tmp/multiple/${module}/${sencondKey}/${thirdKey}/index.html`),
+            title: thirdConf.title,
+          })
+
+        })
+      })
+    } catch (error) {
+
+    }
+
+  })
+
+  return pagesConfig
+}
+
 const createModuleRouterReact = (modules, cb) => {
   let routeConf = `import React from 'react'\nexport default [`
 

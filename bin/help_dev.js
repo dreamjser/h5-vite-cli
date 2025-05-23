@@ -7,7 +7,6 @@ export const createDevFunc = (createFunc) => {
     try {
       // 获取 Vite 配置
       const viteConfig = await import('../build/vite.config.js')
-
       // 创建开发服务器
       const server = await createServer({
         ...viteConfig.default,
