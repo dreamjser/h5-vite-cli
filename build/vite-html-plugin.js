@@ -1,5 +1,5 @@
 import { resolve, join, dirname } from 'path'
-import { readFileSync, existsSync, mkdirSync, renameSync, readdirSync, statSync, unlinkSync } from 'fs'
+import { readFileSync, existsSync, mkdirSync, unlinkSync, writeFileSync, rmSync } from 'fs'
 import { createFilter } from '@rollup/pluginutils'
 
 export default function viteMultiPagePlugin(options = {}) {
@@ -134,9 +134,8 @@ export default function viteMultiPagePlugin(options = {}) {
         // 遍历页面配置，为每个页面移动对应的 HTML 文件
         pages.forEach(page => {
           if (page && page.filename && page.template) {
-            // 构建源文件路径
-            const templatePath = page.template.replace(/.*\/\.tmp\/multiple\//, '')
-            const sourcePath = join(tmpDir, templatePath)
+            // 构建源文件路径 - 直接使用模板路径
+            const sourcePath = page.template
             const targetPath = join(outDir, page.filename)
 
             if (existsSync(sourcePath)) {
@@ -151,15 +150,75 @@ export default function viteMultiPagePlugin(options = {}) {
                 unlinkSync(targetPath)
               }
 
-              // 移动文件
+              // 复制文件并处理内容
               try {
-                renameSync(sourcePath, targetPath)
+                // 查找.tmp目录中构建后的HTML文件
+                const entryName = page.filename.replace(/\.html$/, '').replace(/\//g, '_')
+
+                // 构建后的HTML文件在.tmp/multiple目录的深层嵌套中
+                const templateParts = page.template.split('/')
+                const moduleIndex = templateParts.findIndex(part => part === 'multiple')
+
+                let processedContent = ''
+
+                if (moduleIndex !== -1 && moduleIndex + 1 < templateParts.length) {
+                  // 构建实际的构建后HTML文件路径
+                  const builtHtmlPath = join(outDir, '.tmp', 'multiple', ...templateParts.slice(moduleIndex + 1))
+
+                  if (existsSync(builtHtmlPath)) {
+                    // 使用构建后的HTML文件作为基础
+                    processedContent = readFileSync(builtHtmlPath, 'utf-8')
+
+                    // 替换标题
+                    processedContent = processedContent.replace(
+                      /<title>(.*?)<\/title>/,
+                      `<title>${page.title || 'Untitled'}</title>`
+                    )
+                  } else {
+                    // 如果没有找到构建后的文件，使用原始模板
+                    const content = readFileSync(sourcePath, 'utf-8')
+
+                    processedContent = content.replace(
+                      /<title>(.*?)<\/title>/,
+                      `<title>${page.title || 'Untitled'}</title>`
+                    )
+                  }
+                } else {
+                  // 如果无法解析路径，使用原始模板
+                  const content = readFileSync(sourcePath, 'utf-8')
+
+                  processedContent = content.replace(
+                    /<title>(.*?)<\/title>/,
+                    `<title>${page.title || 'Untitled'}</title>`
+                  )
+                }
+
+                // 如果配置了 minify，进行压缩
+                if (minify) {
+                  processedContent = processedContent
+                    .replace(/\s+/g, ' ')
+                    .replace(/<!--[\s\S]*?-->/g, '')
+                    .trim()
+                }
+
+                // 写入目标文件
+                writeFileSync(targetPath, processedContent, 'utf-8')
               } catch (error) {
-                console.error(`Error moving file: ${error.message}`)
+                console.error(`Error copying file: ${error.message}`)
               }
             }
           }
         })
+
+        // 删除.tmp目录
+        try {
+          const tmpRootDir = join(outDir, '.tmp')
+          if (existsSync(tmpRootDir)) {
+            rmSync(tmpRootDir, { recursive: true, force: true })
+          }
+        } catch (error) {
+          console.error(`Error removing .tmp directory: ${error.message}`)
+        }
       }
     }
   }
