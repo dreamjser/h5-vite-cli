@@ -1,5 +1,5 @@
 import { resolve, join, dirname } from 'path'
-import { readFileSync, existsSync, mkdirSync, unlinkSync, writeFileSync, rmSync } from 'fs'
+import { readFileSync, existsSync, mkdirSync, unlinkSync, writeFileSync, rmSync, readdirSync, statSync } from 'fs'
 import { createFilter } from '@rollup/pluginutils'
 
 export default function viteMultiPagePlugin(options = {}) {
@@ -129,16 +129,45 @@ export default function viteMultiPagePlugin(options = {}) {
 
     // 添加 writeBundle 钩子来处理文件移动
     writeBundle(options, bundle) {
-      const tmpDir = join(outDir, '.tmp', 'multiple')
-      if (existsSync(tmpDir)) {
-        // 遍历页面配置，为每个页面移动对应的 HTML 文件
+      const tmpRootDir = join(outDir, '.tmp')
+      if (existsSync(tmpRootDir)) {
+        // 递归查找HTML文件的函数
+        const findHtmlFiles = (dir) => {
+          const htmlFiles = []
+          const items = readdirSync(dir)
+
+          for (const item of items) {
+            const fullPath = join(dir, item)
+            const stat = statSync(fullPath)
+
+            if (stat.isDirectory()) {
+              htmlFiles.push(...findHtmlFiles(fullPath))
+            } else if (item.endsWith('.html')) {
+              htmlFiles.push(fullPath)
+            }
+          }
+
+          return htmlFiles
+        }
+
+        // 获取所有HTML文件
+        const allHtmlFiles = findHtmlFiles(tmpRootDir)
+
+        // 遍历页面配置，为每个页面查找对应的HTML文件
         pages.forEach(page => {
           if (page && page.filename && page.template) {
-            // 构建源文件路径 - 直接使用模板路径
-            const sourcePath = page.template
             const targetPath = join(outDir, page.filename)
 
-            if (existsSync(sourcePath)) {
+            // 从filename中提取关键信息用于匹配
+            const filenameParts = page.filename.replace(/\.html$/, '').split('/')
+
+            // 查找匹配的HTML文件
+            const matchingHtmlFile = allHtmlFiles.find(htmlFile => {
+              // 检查HTML文件路径是否包含filename的所有部分
+              return filenameParts.every(part => htmlFile.includes(part))
+            })
+
+            if (matchingHtmlFile && existsSync(matchingHtmlFile)) {
               // 确保目标目录存在
               const targetDir = dirname(targetPath)
               if (!existsSync(targetDir)) {
@@ -152,46 +181,14 @@ export default function viteMultiPagePlugin(options = {}) {
 
               // 复制文件并处理内容
               try {
-                // 查找.tmp目录中构建后的HTML文件
-                const entryName = page.filename.replace(/\.html$/, '').replace(/\//g, '_')
+                // 使用找到的构建后HTML文件作为基础
+                let processedContent = readFileSync(matchingHtmlFile, 'utf-8')
 
-                // 构建后的HTML文件在.tmp/multiple目录的深层嵌套中
-                const templateParts = page.template.split('/')
-                const moduleIndex = templateParts.findIndex(part => part === 'multiple')
-
-                let processedContent = ''
-
-                if (moduleIndex !== -1 && moduleIndex + 1 < templateParts.length) {
-                  // 构建实际的构建后HTML文件路径
-                  const builtHtmlPath = join(outDir, '.tmp', 'multiple', ...templateParts.slice(moduleIndex + 1))
-
-                  if (existsSync(builtHtmlPath)) {
-                    // 使用构建后的HTML文件作为基础
-                    processedContent = readFileSync(builtHtmlPath, 'utf-8')
-
-                    // 替换标题
-                    processedContent = processedContent.replace(
-                      /<title>(.*?)<\/title>/,
-                      `<title>${page.title || 'Untitled'}</title>`
-                    )
-                  } else {
-                    // 如果没有找到构建后的文件，使用原始模板
-                    const content = readFileSync(sourcePath, 'utf-8')
-
-                    processedContent = content.replace(
-                      /<title>(.*?)<\/title>/,
-                      `<title>${page.title || 'Untitled'}</title>`
-                    )
-                  }
-                } else {
-                  // 如果无法解析路径，使用原始模板
-                  const content = readFileSync(sourcePath, 'utf-8')
-
-                  processedContent = content.replace(
-                    /<title>(.*?)<\/title>/,
-                    `<title>${page.title || 'Untitled'}</title>`
-                  )
-                }
+                // 替换标题
+                processedContent = processedContent.replace(
+                  /<title>(.*?)<\/title>/,
+                  `<title>${page.title || 'Untitled'}</title>`
+                )
 
                 // 如果配置了 minify，进行压缩
                 if (minify) {
@@ -206,13 +203,14 @@ export default function viteMultiPagePlugin(options = {}) {
               } catch (error) {
                 console.error(`Error copying file: ${error.message}`)
               }
+            } else {
+              console.warn(`No matching HTML file found for: ${page.filename}`)
             }
           }
         })
 
         // 删除.tmp目录
         try {
-          const tmpRootDir = join(outDir, '.tmp')
           if (existsSync(tmpRootDir)) {
             rmSync(tmpRootDir, { recursive: true, force: true })
           }
