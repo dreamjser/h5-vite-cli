@@ -49,13 +49,5 @@
     "cli-build-s": "bin/build_single.js",
     "cli-build-m": "bin/build_multiple.js",
     "cli-test": "bin/test.js"
-  },
-  "scripts": {
-    "prepare": "git init && chmod ug+x .husky/* && husky install",
-    "test": "jest",
-    "test:coverage": "jest --coverage",
-    "cypress:open": "cypress open",
-    "lint": "eslint . --ext .ts,.tsx",
-    "lint:fix": "eslint . --ext .ts,.tsx --fix"
   }
 }
