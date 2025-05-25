@@ -66,17 +66,6 @@ export default defineConfig({
         drop_debugger: true
       }
     },
-    rollupOptions: {
-      output: {
-        // 阻止自动生成子目录
-        assetFileNames: (assetInfo) => {
-          console.log(assetInfo, 'lll')
-          return assetInfo.names === 'index.html'
-            ? '[name][extname]' // HTML强制根目录
-            : 'assets/[name]-[hash][extname]'
-        }
-      }
-    },
     emptyOutDir: true
   }
 })

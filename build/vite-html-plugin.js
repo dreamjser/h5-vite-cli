@@ -62,7 +62,7 @@ export default function viteMultiPagePlugin(options = {}) {
               entryFileNames: (chunkInfo) => {
                 // 单页面模式下，JS 文件直接输出到根目录
                 if (isSinglePage) {
-                  return 'index.js'
+                  return 'index.[hash].js'
                 }
 
                 // 找到对应的页面配置
@@ -73,11 +73,11 @@ export default function viteMultiPagePlugin(options = {}) {
 
                 if (page) {
                   // 使用页面的 filename 路径，但替换为 .js 后缀
-                  return page.filename.replace(/\.html$/, '.js')
+                  return page.filename.replace(/\.html$/, '.[hash].js')
                 }
 
                 // 默认情况
-                return `${chunkInfo.name}.js`
+                return `${chunkInfo.name}.[hash].js`
               },
               // 确保资源文件正确输出
               assetFileNames: (assetInfo) => {
