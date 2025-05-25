@@ -49,7 +49,10 @@ export default function viteMultiPagePlugin(options = {}) {
         console.warn('No valid entry files found. Please check your configuration and file structure.')
       }
 
-      return {
+      // 检查是否为单页面应用
+      const isSinglePage = pages.length === 1 && pages[0].filename === 'index.html'
+
+      const buildConfig = {
         build: {
           outDir,
           rollupOptions: {
@@ -57,6 +60,11 @@ export default function viteMultiPagePlugin(options = {}) {
             output: {
               // 确保每个页面都有自己的入口，JS 文件与 HTML 文件在同一目录
               entryFileNames: (chunkInfo) => {
+                // 单页面模式下，JS 文件直接输出到根目录
+                if (isSinglePage) {
+                  return 'index.js'
+                }
+
                 // 找到对应的页面配置
                 const page = pages.find(p => {
                   const name = p.filename.replace(/\.html$/, '').replace(/\//g, '_')
@@ -87,6 +95,8 @@ export default function viteMultiPagePlugin(options = {}) {
           }
         }
       }
+
+      return buildConfig
     },
 
     transformIndexHtml: {
@@ -100,6 +110,9 @@ export default function viteMultiPagePlugin(options = {}) {
           return templatePath === filename
         })
         if (!page) return html
+
+        // 检查是否为单页面应用
+        const isSinglePage = pages.length === 1 && pages[0].filename === 'index.html'
 
         // 使用页面自己的模板内容
         let result = html
@@ -118,7 +131,12 @@ export default function viteMultiPagePlugin(options = {}) {
             .trim()
         }
 
-        // 返回处理后的 HTML 和原始的输出路径
+        // 单页面模式下直接返回HTML，不改变输出路径
+        if (isSinglePage) {
+          return result
+        }
+
+        // 多页面模式下返回处理后的 HTML 和自定义的输出路径
         return {
           html: result,
           tags: [],
@@ -127,8 +145,50 @@ export default function viteMultiPagePlugin(options = {}) {
       }
     },
 
-    // 添加 writeBundle 钩子来处理文件移动
+        // 添加 writeBundle 钩子来处理文件移动
     writeBundle(options, bundle) {
+      // 检查是否为单页面应用
+      const isSinglePage = pages.length === 1 && pages[0].filename === 'index.html'
+
+      // 单页面模式下需要移动HTML文件到根目录
+      if (isSinglePage) {
+        const templateHtmlPath = join(outDir, 'template', 'index.html')
+        const targetHtmlPath = join(outDir, 'index.html')
+
+        if (existsSync(templateHtmlPath)) {
+          try {
+            // 读取HTML内容
+            let htmlContent = readFileSync(templateHtmlPath, 'utf-8')
+
+            // 替换标题
+            const page = pages[0]
+            if (page.title) {
+              htmlContent = htmlContent.replace(
+                /<title>(.*?)<\/title>/,
+                `<title>${page.title}</title>`
+              )
+            }
+
+            // 如果配置了 minify，进行压缩
+            if (minify) {
+              htmlContent = htmlContent
+                .replace(/\s+/g, ' ')
+                .replace(/<!--[\s\S]*?-->/g, '')
+                .trim()
+            }
+
+            // 写入到根目录
+            writeFileSync(targetHtmlPath, htmlContent, 'utf-8')
+
+            // 删除template目录
+            rmSync(join(outDir, 'template'), { recursive: true, force: true })
+          } catch (error) {
+            console.error(`Error moving HTML file: ${error.message}`)
+          }
+        }
+        return
+      }
+
       const tmpRootDir = join(outDir, '.tmp')
       if (existsSync(tmpRootDir)) {
         // 递归查找HTML文件的函数
@@ -158,10 +218,9 @@ export default function viteMultiPagePlugin(options = {}) {
           if (page && page.filename && page.template) {
             const targetPath = join(outDir, page.filename)
 
-            // 从filename中提取关键信息用于匹配
+            // 多页面模式：根据filename的各个部分进行匹配
             const filenameParts = page.filename.replace(/\.html$/, '').split('/')
 
-            // 查找匹配的HTML文件
             const matchingHtmlFile = allHtmlFiles.find(htmlFile => {
               // 检查HTML文件路径是否包含filename的所有部分
               return filenameParts.every(part => htmlFile.includes(part))
