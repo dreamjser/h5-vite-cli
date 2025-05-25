@@ -4,7 +4,7 @@ import { join } from 'path'
 import eslint from 'vite-plugin-eslint'
 import react from '@vitejs/plugin-react'
 import vue from '@vitejs/plugin-vue'
-import { createHtmlPlugin } from 'vite-plugin-html'
+import createHtmlPlugin from './vite-html-plugin.js'
 
 const appConfig = await getAppConfig()
 const envConfig = await getEnvConfig(process.env.currentEnv)
@@ -12,6 +12,7 @@ const pages = await getMulitEntry()
 const alias = appConfig.alias
 
 export default defineConfig({
+  base: envConfig.PUBLIC_PATH,
   plugins: [
     eslint({
       include: 'src/**/*.{js,jsx,ts,tsx,vue}',
@@ -28,8 +29,10 @@ export default defineConfig({
       pages,
     }) : createHtmlPlugin({
       minify: true,
-      entry: 'src/portal/index.tsx',
-      template: getCurrentPath('template/index.html'),
+      pages: [{
+        filename: 'index.html',
+        template: getCurrentPath('template/index.html')
+      }]
     })
   ],
   resolve: {
@@ -67,12 +70,13 @@ export default defineConfig({
       output: {
         // 阻止自动生成子目录
         assetFileNames: (assetInfo) => {
-          console.log(assetInfo.name, 'assetInfo.name')
+          console.log(assetInfo, 'lll')
           return assetInfo.names === 'index.html'
             ? '[name][extname]' // HTML强制根目录
             : 'assets/[name]-[hash][extname]'
         }
       }
-    }
+    },
+    emptyOutDir: true
   }
 })

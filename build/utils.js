@@ -125,7 +125,6 @@ export const getMulitEntry = async () => {
 
   params.forEach((module) => {
     const confPath = path.join(process.cwd(), `src/modules/${module}/conf.json`);
-
     try {
       const jsonData = fs.readFileSync(confPath, 'utf-8');
       const conf = JSON.parse(jsonData);
@@ -136,18 +135,15 @@ export const getMulitEntry = async () => {
         Object.keys(secondConf).forEach(thirdKey => {
           const thirdConf = secondConf[thirdKey]
           pagesConfig.push({
-            // entry: getCurrentPath(`.tmp/multiple/${module}/${sencondKey}/${thirdKey}/main.${framework === 'vue'? 'js': 'tsx'}`),
-            filename: getCurrentPath(`dist/${module}/${sencondKey}/${thirdKey}.html`),
+            filename: `${module}/${sencondKey}/${thirdKey}.html`,
             template: getCurrentPath(`.tmp/multiple/${module}/${sencondKey}/${thirdKey}/index.html`),
             title: thirdConf.title,
           })
-
         })
       })
     } catch (error) {
-
+      console.error(error)
     }
-
   })
 
   return pagesConfig
