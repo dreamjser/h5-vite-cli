@@ -27,13 +27,7 @@ export default defineConfig({
     process.env.pageType === 'multiple' ? createHtmlPlugin({
       minify: true,
       pages,
-    }) : createHtmlPlugin({
-      minify: true,
-      pages: [{
-        filename: 'index.html',
-        template: getCurrentPath('template/index.html')
-      }]
-    })
+    }): null
   ],
   resolve: {
     alias,
@@ -53,7 +47,27 @@ export default defineConfig({
   server: {
     port: appConfig.devPort,
     open: true,
-    proxy: appConfig.proxyTable,
+    proxy: {
+      ...appConfig.proxyTable,
+      ...(process.env.pageType === 'multiple' ? pages.reduce((acc, page) => {
+        const path = page.filename.replace(/\.html$/, '')
+
+        acc[`/${path}`] = {
+          target: `http://localhost:${appConfig.devPort}`,
+          rewrite: (path) => {
+            if (path.endsWith('.html')) {
+              return `/.tmp/multiple/${page.filename.replace(/\.html$/, '/index.html')}`
+            }
+            return path
+          },
+          changeOrigin: true,
+          secure: false,
+          ws: true
+        }
+
+        return acc
+      }, {}) : {})
+    },
   },
   build: {
     target: 'es2015',
@@ -66,6 +80,6 @@ export default defineConfig({
         drop_debugger: true
       }
     },
-    emptyOutDir: true
-  }
+    emptyOutDir: true,
+  },
 })

@@ -53,9 +53,7 @@ export const createMultiPage = async (cb) => {
     try {
       const jsonData = fs.readFileSync(confPath, 'utf-8');
       const conf = JSON.parse(jsonData);
-      let htmlData = fs.readFileSync(getCurrentPath('template/index.html'), 'utf-8')
-
-
+      let htmlData = fs.readFileSync(getCurrentPath('index.html'), 'utf-8')
       Object.keys(conf).forEach(sencondKey => {
         const secondConf = conf[sencondKey]
 
@@ -85,7 +83,7 @@ export const createMultiPage = async (cb) => {
             `root.render(<Entry />)`
           )
           fileModule.mkdir(thirdPath, () => {
-            htmlData = htmlData.replace(/src="\/src\/portal\/index.tsx?"/, `src="./main.${framework === 'vue'? 'js': 'tsx'}"`)
+            htmlData = htmlData.replace(/src="\/src\/portal\/index.tsx?"/, `src="/.tmp/multiple/${module}/${sencondKey}/${thirdKey}/main.${framework === 'vue'? 'js': 'tsx'}"`)
 
             fs.writeFile(
               thirdPath + `/index.html`,
