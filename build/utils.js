@@ -82,6 +82,7 @@ export const createMultiPage = async (cb) => {
             `const root = createRoot(document.getElementById('${appConfig.containerId}') as HTMLElement)\n`+
             `root.render(<Entry />)`
           )
+
           fileModule.mkdir(thirdPath, () => {
             htmlData = htmlData.replace(/src="\/src\/portal\/index.tsx?"/, `src="/.tmp/multiple/${module}/${sencondKey}/${thirdKey}/main.${framework === 'vue'? 'js': 'tsx'}"`)
 
@@ -97,6 +98,7 @@ export const createMultiPage = async (cb) => {
               () => {}
             )
           })
+
         })
       })
     } catch (error) {
@@ -104,6 +106,9 @@ export const createMultiPage = async (cb) => {
     }
 
   })
+
+  const routerContent = fs.readFileSync(getCurrentPath(`src/common/router/index_${framework === 'vue'? 's': 'm'}.ts`), 'utf-8')
+  fs.writeFileSync(getCurrentPath(`src/common/router/index.ts`), routerContent)
 
   setTimeout(cb, 1000)
 }
@@ -230,6 +235,9 @@ export const createRouterChildren = async (cb) => {
   } else {
     params = params.split(',')
   }
+
+  const routerContent = fs.readFileSync(getCurrentPath('src/common/router/index_s.ts'), 'utf-8')
+  fs.writeFileSync(getCurrentPath('src/common/router/index.ts'), routerContent)
 
   framework === 'vue' ? createModuleRouterVue(params, cb) : createModuleRouterReact(params, cb)
 }
